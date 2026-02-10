@@ -1,29 +1,40 @@
-import jwt from 'jsonwebtoken'
-import bcrypt from 'bcrypt'
+// lib/auth.ts backend
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
-export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 10)
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+
+export interface TokenPayload {
+  userId: number;
+  phone: string;
 }
 
-export async function verifyPassword(password: string, hash: string) {
-  return bcrypt.compare(password, hash)
+// Hash password/PIN
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
 }
 
-export function createToken(userId: number, role: string) {
-  return jwt.sign(
-    { userId, role },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
-  )
+// Compare password/PIN
+export async function comparePassword(
+  password: string,
+  hashedPassword: string
+): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword);
 }
 
-export function verifyToken(token: string) {
+// Generate JWT token
+export function generateToken(payload: TokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: '30d', // Token expires in 30 days
+  });
+}
+
+// Verify JWT token
+export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!) as {
-      userId: number
-      role: string
-    }
-  } catch {
-    return null
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return null;
   }
 }
